@@ -1,0 +1,59 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:15
+    container_name: cafe_postgres
+    environment:
+      POSTGRES_DB: cafe
+      POSTGRES_USER: cafe_user
+      POSTGRES_PASSWORD: cafe_pass
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cafe_user -d cafe"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres_init.sql:/docker-entrypoint-initdb.d/init.sql
+
+  superset:
+    image: apache/superset:latest-dev
+    container_name: cafe_superset
+    user: root # Needed to allow automatic driver installation
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8088:8088"
+    environment:
+      SUPERSET_SECRET_KEY: "super_secret_cafe_key_123"
+      # This automatically installs the Postgres driver on startup
+      ADDITIONAL_REQUIREMENTS: "psycopg2-binary"
+    volumes:
+      - superset_home:/app/superset_home
+      - ./superset_config.py:/app/pythonpath/superset_config.py
+    command: >
+      bash -c "
+      superset db upgrade &&
+      superset fab create-admin --username admin --firstname Admin --lastname User --email admin@cafe.com --password admin &&
+      superset init &&
+      superset run -h 0.0.0.0 -p 8088 --with-threads"
+
+  ingestion:
+    image: python:3.11-slim
+    container_name: cafe_ingestion
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - .:/app
+    working_dir: /app
+    command: >
+      bash -c "pip install psycopg2-binary && python ingest.py"
+
+volumes:
+  postgres_data:
+  superset_home:
