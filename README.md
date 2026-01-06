@@ -1,7 +1,7 @@
 # ☕ Café Analytics Platform
 
 **An End-to-End Data Engineering & Analytics System (Docker · PostgreSQL · Python · Apache Superset)**
-
+![Pipeline Image](image/pipeline.png)
 ---
 
 ## 📌 Overview
